@@ -94,6 +94,7 @@
   function freshState() {
     return {
       nomor: autoNomor(), tanggal: todayISO(),
+      maskapaiAtas: "", kantorAtas: "",
       pemesan: { nama: "", hp: "", email: "" }, pnr: "",
       penerbangan: [newFlight()], penumpang: [newPax()],
       biayaLayanan: 0, diskon: 0, metode: CFG.metodeBayar[0] || "", status: CFG.statusBayar[0] || "LUNAS", dp: 0, catatan: ""
@@ -383,7 +384,7 @@
     var path = inp.getAttribute("data-bind"), v;
     if (inp.hasAttribute("data-money")) v = formatMoney(inp);
     else v = inp.value;
-    if (path === "pnr") v = v.toUpperCase();
+    if (/^(pnr|maskapaiAtas|kantorAtas)$/.test(path)) v = v.toUpperCase();
     setPath(state, path, v);
     clearInvalid(inp);
     changed();

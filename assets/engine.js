@@ -579,13 +579,14 @@
     });
 
     var firstF = penerbangan[0];
-    var mainAirline = (firstF && firstF.maskapai) || (p.nama || "MALAYSIA AIRLINES");
+    var mainAirline = str(state.maskapaiAtas) || (firstF && firstF.maskapai) || "MALAYSIA AIRLINES";
     var originCity = (firstF && firstF.kotaAsal) || str(p.kota) || "SURABAYA";
-    var officeCity = originCity.toUpperCase() + " RES N TKTG";
+    var officeCity = str(state.kantorAtas) || (originCity.toUpperCase() + " RES N TKTG");
     var dateEn = tanggalEn(state.tanggal);
     var paxTopList = penumpang.map(function (px) { return px.namaTiket; }).filter(Boolean);
     if (!paxTopList.length && state.pemesan && state.pemesan.nama) {
-      paxTopList = [formatNamaTiket(state.pemesan.nama, "")];
+      var defSapaan = (state.penumpang && state.penumpang[0] && state.penumpang[0].sapaan) || "";
+      paxTopList = [formatNamaTiket(state.pemesan.nama, defSapaan)];
     }
     if (!paxTopList.length) paxTopList = ["MANIN/ROKAYAH BT ROHMAN MRS"];
 
