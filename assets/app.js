@@ -84,7 +84,7 @@
       maskapai: "", maskapaiLain: "", nomor: "",
       dari: "", dariKode: "", dariKota: "", dariNegara: "", dariBandara: "", terminalDari: "",
       ke: "", keKode: "", keKota: "", keNegara: "", keBandara: "", terminalKe: "",
-      tanggal: "", berangkat: "", tiba: "", kelas: CFG.kelas[0] || "", bagasi: ""
+      tanggal: "", berangkat: "", tiba: "", kelas: CFG.kelas[0] || "", bagasi: "", pesawat: ""
     };
   }
   // pasangan isian asal <-> tujuan, dipakai saat menukar rute / membuat rute pulang
@@ -101,21 +101,19 @@
   }
   function sampleState() {
     var s = freshState();
-    s.pemesan = { nama: "Budi Santoso", hp: "0812-3456-7890", email: "budi.santoso@email.com" };
-    s.pnr = "K7XQ2M";
-    // contoh umrah: Surabaya - Kuala Lumpur - Jeddah, pulang Madinah - Kuala Lumpur - Surabaya
+    s.tanggal = "2026-10-16";
+    s.pemesan = { nama: "MANIN/ROKAYAH BT ROHMAN MRS", hp: "0812-3456-7890", email: "" };
+    s.pnr = "FD7B5U";
+    // contoh rute Timur Tengah sesuai tiket: Surabaya - Kuala Lumpur - Doha - Hail
     s.penerbangan = [
-      Object.assign(newFlight(), { maskapai: "MH", nomor: "MH 870", dari: "SUB", ke: "KUL", terminalDari: "2", terminalKe: "1", tanggal: addDaysISO(14), berangkat: "10:15", tiba: "13:45", kelas: "Ekonomi", bagasi: "30 kg" }),
-      Object.assign(newFlight(), { maskapai: "MH", nomor: "MH 150", dari: "KUL", ke: "JED", terminalDari: "1", terminalKe: "1", tanggal: addDaysISO(14), berangkat: "16:20", tiba: "20:35", kelas: "Ekonomi", bagasi: "30 kg" }),
-      Object.assign(newFlight(), { maskapai: "MH", nomor: "MH 157", dari: "MED", ke: "KUL", terminalKe: "1", tanggal: addDaysISO(26), berangkat: "21:40", tiba: "11:55", kelas: "Ekonomi", bagasi: "30 kg" }),
-      Object.assign(newFlight(), { maskapai: "MH", nomor: "MH 873", dari: "KUL", ke: "SUB", terminalDari: "1", terminalKe: "2", tanggal: addDaysISO(27), berangkat: "14:30", tiba: "16:05", kelas: "Ekonomi", bagasi: "30 kg" })
+      Object.assign(newFlight(), { maskapai: "MH", nomor: "MH 872", dari: "SUB", ke: "KUL", terminalDari: "2", terminalKe: "1", tanggal: "2026-10-18", berangkat: "15:50", tiba: "19:30", kelas: "Ekonomi", bagasi: "30 kg", pesawat: "BOEING 737 MAX 8" }),
+      Object.assign(newFlight(), { maskapai: "QR", nomor: "QR 4992", dari: "KUL", ke: "DOH", terminalDari: "1", terminalKe: "", tanggal: "2026-10-19", berangkat: "03:10", tiba: "05:45", kelas: "Ekonomi", bagasi: "30 kg", pesawat: "AIRBUS A330-300" }),
+      Object.assign(newFlight(), { maskapai: "QR", nomor: "QR 1228", dari: "DOH", ke: "HAS", terminalDari: "", terminalKe: "", tanggal: "2026-10-19", berangkat: "14:25", tiba: "16:35", kelas: "Ekonomi", bagasi: "30 kg", pesawat: "AIRBUS A330-300" })
     ];
     s.penumpang = [
-      { sapaan: "Tn.", nama: "Budi Santoso", tipe: "Dewasa", tiket: "232-1234567801", harga: 13250000 },
-      { sapaan: "Ny.", nama: "Sari Wulandari", tipe: "Dewasa", tiket: "232-1234567802", harga: 13250000 },
-      { sapaan: "An.", nama: "Rafa Pratama", tipe: "Anak", tiket: "232-1234567803", harga: 10150000 }
+      { sapaan: "Ny.", nama: "MANIN/ROKAYAH BT ROHMAN MRS", tipe: "Dewasa", tiket: "232 5899282788", harga: 13250000 }
     ];
-    s.biayaLayanan = 150000;
+    s.biayaLayanan = 0;
     s.metode = CFG.metodeBayar.indexOf("Transfer Bank") >= 0 ? "Transfer Bank" : s.metode;
     return s;
   }
@@ -217,6 +215,7 @@
         fieldHtml("Kelas", p + "c", selectHtml(p + "c", "kelas", simpleOptions(CFG.kelas, "Pilih kelas"), f.kelas)) +
         fieldHtml("Bagasi", p + "g", selectHtml(p + "g", "bagasi", simpleOptions(CFG.bagasi, "Pilih bagasi"), f.bagasi)) +
       "</div>" +
+      fieldHtml("Tipe pesawat / Equipment <em>opsional</em>", p + "ps", inputHtml(p + "ps", "pesawat", f.pesawat, 'class="caps" spellcheck="false" placeholder="Contoh: BOEING 737 MAX 8"')) +
     "</div>";
   }
   function renderFlights() {
@@ -231,7 +230,7 @@
     if (!item || !key) return;
     var f = state.penerbangan[Number(item.getAttribute("data-i"))];
     var val = el.value;
-    if (/^(nomor|dariKode|keKode|dariNegara|keNegara)$/.test(key)) val = val.toUpperCase();
+    if (/^(nomor|dariKode|keKode|dariNegara|keNegara|pesawat)$/.test(key)) val = val.toUpperCase();
     var prev = f[key];
     f[key] = val;
     if (key === "maskapai") {
@@ -300,11 +299,11 @@
       "</div>" +
       '<div class="grid g-pax">' +
         fieldHtml("Sapaan", id + "s", selectHtml(id + "s", "sapaan", simpleOptions(CFG.sapaan, "–"), p.sapaan)) +
-        fieldHtml("Nama penumpang", id + "n", inputHtml(id + "n", "nama", p.nama, 'placeholder="Sesuai KTP/paspor" autocapitalize="words"')) +
+        fieldHtml("Nama penumpang", id + "n", inputHtml(id + "n", "nama", p.nama, 'placeholder="Contoh: MANIN/ROKAYAH BT ROHMAN MRS" autocapitalize="words"')) +
       "</div>" +
       '<div class="grid g-pax2">' +
         fieldHtml("Tipe", id + "t", selectHtml(id + "t", "tipe", simpleOptions(CFG.tipePenumpang), p.tipe)) +
-        fieldHtml("No. tiket <em>opsional</em>", id + "k", inputHtml(id + "k", "tiket", p.tiket, 'spellcheck="false" inputmode="text"')) +
+        fieldHtml("No. tiket <em>opsional</em>", id + "k", inputHtml(id + "k", "tiket", p.tiket, 'placeholder="Contoh: 232 5899282788" spellcheck="false" inputmode="text"')) +
         fieldHtml("Harga", id + "h", '<div class="money"><span aria-hidden="true">Rp</span>' +
           inputHtml(id + "h", "harga", p.harga ? E.angka(p.harga) : "", 'inputmode="numeric" placeholder="0"') + "</div>") +
       "</div>" +
@@ -399,7 +398,7 @@
     function bad(el, msg) { if (el) el.setAttribute("aria-invalid", "true"); errs.push({ el: el, msg: msg }); }
     function q(kind, i, f) { return $("#" + kind + ' .item[data-i="' + i + '"] [data-f="' + f + '"]'); }
 
-    if (!String(state.pemesan.nama).trim()) bad($("#fPemesan"), "nama pemesan");
+    if (desainId !== "sederhana" && !String(state.pemesan.nama).trim()) bad($("#fPemesan"), "nama pemesan");
     state.penerbangan.forEach(function (f, i) {
       var filled = f.maskapai || f.dari || f.ke || f.tanggal || String(f.nomor).trim();
       if (!filled && i > 0) return;
@@ -418,11 +417,13 @@
       if (!String(p.nama).trim() && !p.harga && i > 0) return;
       if (!String(p.nama).trim()) bad(q("listPax", i, "nama"), "nama penumpang " + (i + 1));
     });
-    var h = E.hitung(state);
-    if (!h.subtotal) bad(q("listPax", 0, "harga"), "harga tiket");
-    if (state.status === "DP") {
-      if (!state.dp) bad($("#fDp"), "nominal DP");
-      else if (state.dp >= h.total) bad($("#fDp"), "nominal DP harus lebih kecil dari total");
+    if (desainId !== "sederhana") {
+      var h = E.hitung(state);
+      if (!h.subtotal) bad(q("listPax", 0, "harga"), "harga tiket");
+      if (state.status === "DP") {
+        if (!state.dp) bad($("#fDp"), "nominal DP");
+        else if (state.dp >= h.total) bad($("#fDp"), "nominal DP harus lebih kecil dari total");
+      }
     }
     return errs;
   }

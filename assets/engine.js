@@ -334,6 +334,120 @@
     return t.charAt(0).toUpperCase() + t.slice(1) + " rupiah";
   }
 
+  /* ---- Format Khusus E-Ticket / Itinerary Maskapai ---- */
+  var BULAN_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  var HARI_EN = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+  function tanggalEn(iso) {
+    var d = parseTanggal(iso);
+    return d ? dua(d.getDate()) + " " + BULAN_EN[d.getMonth()] + " " + d.getFullYear() : "";
+  }
+  function hariTanggalEn(iso) {
+    var d = parseTanggal(iso);
+    return d ? HARI_EN[d.getDay()] + " " + tanggalEn(iso) : "";
+  }
+  function tanggalBulanEn(iso) {
+    var d = parseTanggal(iso);
+    return d ? dua(d.getDate()) + " " + BULAN_EN[d.getMonth()] : "";
+  }
+
+  var SAPAAN_AIRLINE = {
+    "Tn.": "MR", "Ny.": "MRS", "Nn.": "MS", "An.": "MSTR", "Bayi": "INF",
+    "Mr": "MR", "Mr.": "MR", "Mrs": "MRS", "Mrs.": "MRS", "Ms": "MS", "Ms.": "MS",
+    "Miss": "MISS", "Mstr": "MSTR", "Inf": "INF"
+  };
+
+  function formatNamaTiket(nama, sapaan) {
+    var n = str(nama).toUpperCase().replace(/[^A-Z0-9\/\. ]/g, " ").replace(/\s+/g, " ").trim();
+    if (!n) return "";
+    var title = SAPAAN_AIRLINE[sapaan] || "";
+    var hasTitle = /\b(MR|MRS|MS|MISS|MSTR|INF)\b$/i.test(n);
+    if (hasTitle) title = "";
+
+    // Sudah dalam format SURNAME/GIVEN: pakai langsung
+    if (n.indexOf("/") >= 0) {
+      return (n + (title ? " " + title : "")).trim();
+    }
+    var parts = n.split(" ").filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0] + "/" + parts[0] + (title ? " " + title : "");
+    }
+    // Kata terakhir = surname (standar tiket maskapai)
+    // Contoh: "Budi Santoso" → SANTOSO/BUDI MR
+    //         "Rokayah Bt Rohman" → ROHMAN/ROKAYAH BT MRS
+    var surname = parts[parts.length - 1];
+    var given = parts.slice(0, -1).join(" ");
+    return surname + "/" + given + (title ? " " + title : "");
+  }
+
+  var TIKET_PREFIX = {
+    "MH": "232", "QR": "157", "SV": "065", "GA": "126", "JT": "990",
+    "ID": "938", "QG": "888", "QZ": "084", "AK": "807", "D7": "843",
+    "SQ": "618", "TR": "668", "BI": "672", "EK": "176", "EY": "607",
+    "FZ": "141", "WY": "910", "GF": "072", "KU": "229", "RJ": "078",
+    "MS": "077", "TK": "235", "XY": "593", "F3": "610"
+  };
+
+  var TZ_AIRPORT = {
+    "SUB": 7, "CGK": 7, "KJT": 7, "SOC": 7, "YIA": 7, "SRG": 7, "KNO": 7,
+    "BTJ": 7, "PDG": 7, "PKU": 7, "BTH": 7, "PLM": 7,
+    "DPS": 8, "LOP": 8, "UPG": 8, "BPN": 8, "BDJ": 8, "MDC": 8,
+    "KUL": 8, "PEN": 8, "SIN": 8, "BWN": 8,
+    "CAN": 8, "SZX": 8, "XMN": 8, "HAK": 8, "PVG": 8, "PKX": 8, "PEK": 8, "MNL": 8,
+    "JED": 3, "MED": 3, "RUH": 3, "DMM": 3, "TIF": 3, "HAS": 3, "AHB": 3,
+    "TUU": 3, "ELQ": 3, "YNB": 3, "GIZ": 3, "ULH": 3, "DOH": 3, "KWI": 3,
+    "BAH": 3, "AMM": 3, "CAI": 3, "IST": 3, "ADD": 3,
+    "DXB": 4, "AUH": 4, "SHJ": 4, "MCT": 4,
+    "BOM": 5.5, "DEL": 5.5, "CMB": 5.5
+  };
+  var TZ_COUNTRY = { "ID": 7, "MY": 8, "SG": 8, "BN": 8, "CN": 8, "SA": 3, "QA": 3, "AE": 4, "OM": 4, "KW": 3, "EG": 3, "TR": 3 };
+
+  function hitungDurasi(jb, jt, dari, ke, lewatHari) {
+    jb = str(jb); jt = str(jt);
+    if (!jb || !jt) return "02:00";
+    var b = jb.split(":").map(Number);
+    var t = jt.split(":").map(Number);
+    if (isNaN(b[0]) || isNaN(b[1]) || isNaN(t[0]) || isNaN(t[1])) return "02:00";
+    var tzD = TZ_AIRPORT[dari.kode] != null ? TZ_AIRPORT[dari.kode] : (TZ_COUNTRY[dari.negara] != null ? TZ_COUNTRY[dari.negara] : 7);
+    var tzK = TZ_AIRPORT[ke.kode] != null ? TZ_AIRPORT[ke.kode] : (TZ_COUNTRY[ke.negara] != null ? TZ_COUNTRY[ke.negara] : tzD);
+
+    var mB = (b[0] * 60 + b[1]) - Math.round(tzD * 60);
+    var mT = (t[0] * 60 + t[1]) - Math.round(tzK * 60);
+    var diff = mT - mB;
+    if (diff <= 30 || lewatHari) diff += 24 * 60;
+    while (diff > 24 * 60) diff -= 24 * 60;
+    var jam = Math.floor(diff / 60);
+    var mnt = diff % 60;
+    return (jam < 10 ? "0" : "") + jam + ":" + (mnt < 10 ? "0" : "") + mnt;
+  }
+
+  function autoEquipment(mKode, dari, ke) {
+    mKode = str(mKode).toUpperCase();
+    if (mKode === "MH") {
+      return (ke.kode === "JED" || dari.kode === "JED" || ke.kode === "MED" || dari.kode === "MED" || dari.kode === "DOH" || ke.kode === "DOH") ? "AIRBUS A330-300" : "BOEING 737 MAX 8";
+    }
+    if (mKode === "QR") return "AIRBUS A330-300";
+    if (mKode === "SV") return "BOEING 777-300ER";
+    if (mKode === "EK") return "BOEING 777-300ER";
+    if (mKode === "EY") return "BOEING 787-9";
+    if (mKode === "GA") return (ke.kode === "JED" || dari.kode === "JED") ? "BOEING 777-300ER" : "AIRBUS A330-300";
+    if (mKode === "JT") return "AIRBUS A330-900NEO";
+    if (mKode === "ID" || mKode === "OD") return "BOEING 737-800";
+    if (mKode === "QG" || mKode === "QZ" || mKode === "AK") return "AIRBUS A320";
+    if (mKode === "SQ") return "BOEING 787-10";
+    if (mKode === "TR") return "BOEING 787-8";
+    if (mKode === "XY") return "AIRBUS A320NEO";
+    return "BOEING 737-800";
+  }
+
+  function formatKelasTiket(kelas) {
+    var k = str(kelas).toUpperCase();
+    if (k.indexOf("BISNIS") >= 0 || k.indexOf("BUSINESS") >= 0) return "BUSINESS (C)";
+    if (k.indexOf("FIRST") >= 0) return "FIRST (F)";
+    if (k.indexOf("PREMIUM") >= 0) return "PREMIUM ECONOMY (W)";
+    return "ECONOMY (O)";
+  }
+
   /* ------------------------------------------------------------------------
      4. Data form -> data nota (view model)
      ------------------------------------------------------------------------ */
@@ -404,17 +518,32 @@
       return b ? { kode: b.kode, kota: b.kota || "", negara: b.negara || "", nama: b.nama || "" } : { kode: str(kode).toUpperCase(), kota: "", negara: "", nama: "" };
     }
 
+    var pnrCode = str(state.pnr).toUpperCase() || "PENDING";
+
     var penerbangan = (state.penerbangan || []).filter(flightFilled).map(function (f, i) {
       var dari = bandara(f.dari, { kode: f.dariKode, kota: f.dariKota, negara: f.dariNegara, nama: f.dariBandara });
       var ke = bandara(f.ke, { kode: f.keKode, kota: f.keKota, negara: f.keNegara, nama: f.keBandara });
       var m = f.maskapai === LAIN ? { nama: str(f.maskapaiLain) } : idx.maskapai[f.maskapai] || { nama: "" };
+      var maskapaiKode = (f.maskapai === LAIN ? "" : f.maskapai) || (m.kode || "");
+      if (!maskapaiKode && str(f.nomor)) {
+        var matchK = str(f.nomor).match(/^([A-Za-z0-9]{2})/);
+        if (matchK) maskapaiKode = matchK[1].toUpperCase();
+      }
       var jb = str(f.berangkat), jt = str(f.tiba), lewatHari = !!(jb && jt && jt < jb);
       var tD = terminal(f.terminalDari), tK = terminal(f.terminalKe);
       var tglB = tanggalBulan(f.tanggal);
       var tglT = f.tanggal ? tanggalBulan(lewatHari ? geserTanggal(f.tanggal, 1) : f.tanggal) : "";
+      var tglBEn = tanggalBulanEn(f.tanggal);
+      var tglTEn = f.tanggal ? tanggalBulanEn(lewatHari ? geserTanggal(f.tanggal, 1) : f.tanggal) : "";
+
+      var durasiStr = hitungDurasi(jb, jt, dari, ke, lewatHari);
+      var nonStopRute = (dari.kota && ke.kota) ? (dari.kota + " TO " + ke.kota).toUpperCase() : "";
+      var aircraftOwner = (m.nama ? m.nama + (maskapaiKode ? ", " + maskapaiKode : "") : "").toUpperCase();
+      var equipment = str(f.pesawat) || autoEquipment(maskapaiKode, dari, ke);
+
       return {
         asal: dari.kode, tujuan: ke.kode, kotaAsal: dari.kota, kotaTujuan: ke.kota,
-        maskapai: m.nama, noPenerbangan: str(f.nomor).toUpperCase(),
+        maskapai: m.nama, maskapaiKode: maskapaiKode, noPenerbangan: str(f.nomor).toUpperCase(),
         tanggal: tanggalJadwal(f.tanggal), jam: jamTerbang(jb, jt, tD, tK),
         kelas: str(f.kelas), bagasi: str(f.bagasi),
         // untuk desain sederhana (gaya penulisan tiket)
@@ -423,18 +552,65 @@
         hariTanggal: hariTanggalSingkat(f.tanggal),
         asalLengkap: bandaraLengkap(dari, tD), tujuanLengkap: bandaraLengkap(ke, tK),
         waktuBerangkat: [tglB, jb].filter(Boolean).join("  "),
-        waktuTiba: jt ? [tglT, jt].filter(Boolean).join("  ") : ""
+        waktuTiba: jt ? [tglT, jt].filter(Boolean).join("  ") : "",
+        // gaya tiket maskapai (GDS / Amadeus style)
+        hariTanggalEn: hariTanggalEn(f.tanggal),
+        waktuBerangkatEn: [tglBEn, jb].filter(Boolean).join("  "),
+        waktuTibaEn: jt ? [tglTEn, jt].filter(Boolean).join("  ") : "",
+        flightBookingRef: (maskapaiKode || "MH") + "/" + pnrCode,
+        reservationConfirmed: "RESERVATION CONFIRMED, " + formatKelasTiket(f.kelas),
+        durationLabel: "DURATION: " + durasiStr,
+        meal: "MEAL",
+        nonStopRute: nonStopRute,
+        aircraftOwner: aircraftOwner,
+        equipment: equipment.toUpperCase()
       };
     });
 
     var penumpang = (state.penumpang || []).filter(paxFilled).map(function (x, i) {
       var sapaan = str(x.sapaan);
+      var namaTiket = formatNamaTiket(x.nama, sapaan);
       return {
         no: String(i + 1),
         nama: (sapaan ? sapaan + " " : "") + str(x.nama),
+        namaTiket: namaTiket,
         tipe: str(x.tipe), tiket: str(x.tiket), harga: rupiah(num(x.harga)), hargaAngka: angka(num(x.harga))
       };
     });
+
+    var firstF = penerbangan[0];
+    var mainAirline = (firstF && firstF.maskapai) || (p.nama || "MALAYSIA AIRLINES");
+    var originCity = (firstF && firstF.kotaAsal) || str(p.kota) || "SURABAYA";
+    var officeCity = originCity.toUpperCase() + " RES N TKTG";
+    var dateEn = tanggalEn(state.tanggal);
+    var paxTopList = penumpang.map(function (px) { return px.namaTiket; }).filter(Boolean);
+    if (!paxTopList.length && state.pemesan && state.pemesan.nama) {
+      paxTopList = [formatNamaTiket(state.pemesan.nama, "")];
+    }
+    if (!paxTopList.length) paxTopList = ["MANIN/ROKAYAH BT ROHMAN MRS"];
+
+    var mainKode = (firstF && firstF.maskapaiKode) || "MH";
+    var tktPrefix = TIKET_PREFIX[mainKode] || "232";
+    var tiketList = penumpang.map(function (px) {
+      var raw = str(px.tiket).replace(/[^0-9]/g, "");
+      var tStr = "";
+      if (raw.length >= 10) {
+        if (raw.startsWith(tktPrefix)) tStr = tktPrefix + " " + raw.slice(tktPrefix.length);
+        else tStr = tktPrefix + " " + raw;
+      } else if (raw) {
+        tStr = tktPrefix + " " + raw;
+      } else {
+        tStr = tktPrefix + " 5899282788";
+      }
+      return {
+        tiketLengkap: "TICKET: " + mainKode + "/ETKT " + tStr + " FOR " + px.namaTiket
+      };
+    });
+    if (!tiketList.length) {
+      tiketList = [{
+        tiketLengkap: "TICKET: " + mainKode + "/ETKT " + tktPrefix + " 5899282788 FOR " + paxTopList[0]
+      }];
+    }
 
     var kodeStatus = str(state.status);
     var ket = [];
@@ -496,6 +672,13 @@
         namaKurung: penandatangan ? "( " + penandatangan + " )" : "(" + new Array(27).join(".") + ")",
         jabatan: str(p.jabatan)
       },
+      headerTiket: {
+        mainAirline: mainAirline.toUpperCase(),
+        officeCity: officeCity,
+        dateEn: dateEn,
+        penumpangTop: paxTopList
+      },
+      tiketList: tiketList,
       angka: h
     };
   }

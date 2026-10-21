@@ -196,8 +196,8 @@ window.NOTA_CONFIG = {
     },
     {
       id: "sederhana",
-      nama: "Sederhana",
-      keterangan: "Hitam-putih, hemat tinta untuk kertas biasa",
+      nama: "E-Ticket",
+      keterangan: "Format tiket maskapai, tanpa kop",
       master: null,
       font: { standar: "Courier", standarTebal: "Courier-Bold" },
       layout: "NOTA_LAYOUT_SEDERHANA",
